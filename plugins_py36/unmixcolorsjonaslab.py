@@ -14,7 +14,7 @@ used, a slide with just that stain applied must be captured by the microscope. I
 case of IHC-based dyes (e.g. DAB, as opposed to purely biochemical dyes such as DAPI or 
 Hoechst), a good control tissue with an abundant biomarker should be used. 
 
-
+ 
 References
 ^^^^^^^^^^
 

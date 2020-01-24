@@ -85,6 +85,7 @@ def _make_wedge_mask(
         & (-dth <= angle)
         & (angle <= dth)
     )
+    assert mask.dtype == bool
     return mask
 
 
@@ -155,19 +156,19 @@ class MakeWedgeMask(cellprofiler.module.Module):
         module_explanation = "Creates a binary mask of the wedge."
         self.set_notes([module_explanation])
 
+        self.wedge_mask_name = cellprofiler.setting.ObjectNameProvider(
+            text="Name the wedge mask",
+            value="WedgeMask",
+            doc="Enter the name of the wedge mask.",
+        )
+
         self.image_name = cellprofiler.setting.ImageNameSubscriber(
-            text="Select image to create mask for",
+            text="Select image to overlay on",
             value=cellprofiler.setting.NONE,
             doc="""\
 Choose the image_name upon which a wedge mask constructed from the given 
 parameters is laid. Can be either RGB or grayscale.
 """,
-        )
-
-        self.wedge_mask_name = cellprofiler.setting.ObjectNameProvider(
-            text="Name the wedge mask",
-            value="WedgeMask",
-            doc="Enter the name of the wedge mask.",
         )
 
         self.divider = cellprofiler.setting.Divider(line=True)
@@ -204,8 +205,8 @@ module is visualized.""",
 
     def settings(self) -> List[cellprofiler.setting.Setting]:
         return [
-            self.image_name,
             self.wedge_mask_name,
+            self.image_name,
             self.divider,
             self.thickness,
             self.span,
