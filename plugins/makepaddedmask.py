@@ -88,7 +88,7 @@ class MakePaddedMask(cellprofiler.module.Module):
 
         self.image_name = cellprofiler.setting.ImageNameSubscriber(
             text="Select image to overlay on",
-            value=cellprofiler.setting.NONE,
+            value=cellprofiler.setting.LEAVE_BLANK,
             doc="""\
 Choose the image_name upon which a padded mask constructed from the input_mask is laid.
 """,
