@@ -53,8 +53,9 @@ mode2color: Dict[str, str] = {"light": "k", "dark": "w"}
 
 MEASUREMENTS = ["Center_X", "Center_Y", "Well_X", "Well_Y"]
 
+
 # Helper types
-InteractorParamObj = Dict[str, Union[str, Callable, Tuple[int, int]]]
+# InteractorParamObj = Dict[str, Union[str, Callable, Tuple[int, int]]]
 
 
 def cart2pol(x: float, y: float, in_deg: bool = True) -> Tuple[float, float]:
@@ -96,7 +97,7 @@ def move(key: str, x: int, y: int) -> Tuple[int, int]:
     return x, y
 
 
-class BaseInteractor:
+class BaseInteractor(object):
     def __init__(self, axes: matplotlib.axes.Axes, **kwargs):
         """
 
@@ -155,7 +156,7 @@ class BowInteractor(BaseInteractor):
         self.span: float = kwargs.get("span", 90.0)  # degrees
         self.stickout: float = kwargs.get("stickout", 1.1)  # unit-less
 
-        super().__init__(*args, **kwargs)
+        super(BowInteractor, self).__init__(*args, **kwargs)
 
         self._ind: Union[None, int] = None
         self._ind_last: Union[None, int] = None
@@ -263,7 +264,7 @@ class BowInteractor(BaseInteractor):
         return angle
 
     # === EXPORT ============================================================= #
-    def get_params(self) -> InteractorParamObj:
+    def get_params(self) -> Dict[str, Union[str, Callable, Tuple[int, int]]]:
         return {"id": self.id, "cxy": self.cxy, "wxy": self.wxy}
 
     # === INTERACTION ======================================================== #
@@ -313,7 +314,7 @@ class BowInteractor(BaseInteractor):
         arc.angle = angle
         arc.width = 2 * r
         arc.height = 2 * r
-        arc.set_center(self.cxy)
+        arc.center = self.cxy
 
         r_ext = r * self.stickout
         hspan = self.span / 2
@@ -384,7 +385,7 @@ class BowInteractor(BaseInteractor):
 
 class BaseInteractorsPanel(wx.Panel):
     def __init__(self, parent=None):
-        super().__init__(parent=parent)
+        super(BaseInteractorsPanel, self).__init__(parent=parent)
 
         self.interactors: List[BaseInteractor] = []
         self.factor = None
@@ -482,16 +483,18 @@ class BaseInteractorsPanel(wx.Panel):
 
 class DevicesInteractorsPanel(BaseInteractorsPanel):
     def __init__(self, parent=None):
-        super().__init__(parent=parent)
+        super(DevicesInteractorsPanel, self).__init__(parent=parent)
 
-    def SetInteractors(self, interactors: List[InteractorParamObj]) -> None:
+    def SetInteractors(
+        self, interactors: List[Dict[str, Union[str, Callable, Tuple[int, int]]]]
+    ) -> None:
         self.interactors = []
         for interactor in interactors:
             assert {"id", "cxy", "wxy", "artist"}.issubset(interactor.keys())
             artist = interactor["artist"](self.axes, **interactor)
             self.interactors.append(artist)
 
-    def GetInteractors(self) -> List[InteractorParamObj]:
+    def GetInteractors(self) -> List[Dict[str, Union[str, Callable, Tuple[int, int]]]]:
         return [interactor.get_params() for interactor in self.interactors]
 
 
@@ -509,7 +512,9 @@ class SingleBowAnnotationDialog(wx.Dialog):
         )
         frame_size = 1500, 800  # width, height
 
-        super().__init__(parent=None, title=title, style=frame_style, size=frame_size)
+        super(SingleBowAnnotationDialog, self).__init__(
+            parent=None, title=title, style=frame_style, size=frame_size
+        )
 
         self.interactorsP = DevicesInteractorsPanel(self)
 
@@ -529,7 +534,7 @@ class SingleBowAnnotationDialog(wx.Dialog):
     def SetInteractors(self, *args, **kwargs) -> None:
         self.interactorsP.SetInteractors(*args, **kwargs)
 
-    def GetInteractors(self) -> InteractorParamObj:
+    def GetInteractors(self) -> Dict[str, Union[str, Callable, Tuple[int, int]]]:
         interactors = self.interactorsP.GetInteractors()
         assert len(interactors) == 1
         return interactors[0]
@@ -622,9 +627,7 @@ class IdentifyBow(cellprofiler.module.Module):
                 "stickout": self.stickout.value,
             }
         ]
-        params_post: InteractorParamObj = workspace.interaction_request(
-            self, image, params_pre
-        )
+        params_post = workspace.interaction_request(self, image, params_pre)
         assert {"id", "cxy", "wxy"} == set(params_post.keys())
         # save measurements
         cx, cy = params_post["cxy"]
@@ -639,8 +642,10 @@ class IdentifyBow(cellprofiler.module.Module):
         workspace.measurements.add_image_measurement(feature_name="Bow_Well_Y", data=wy)
 
     def handle_interaction(
-        self, image: Image, bow_params_pre: InteractorParamObj
-    ) -> Union[InteractorParamObj, None]:
+        self,
+        image: Image,
+        bow_params_pre: Dict[str, Union[str, Callable, Tuple[int, int]]],
+    ) -> Union[Dict[str, Union[str, Callable, Tuple[int, int]]], None]:
         with SingleBowAnnotationDialog() as dialog:
             dialog.SetImage(image)
             dialog.SetInteractors(bow_params_pre)
