@@ -1,9 +1,0 @@
-astunparse
-black
-docutils
-matplotlib
-numpy
-six
-scikit-image
-scipy
-wxpython

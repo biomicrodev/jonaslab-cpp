@@ -1,0 +1,14 @@
+name: jonaslab-cpp
+channels:
+  - conda-forge
+dependencies:
+  - astunparse
+  - black
+  - strip-hints
+  - docutils
+  - matplotlib
+  - numpy
+  - six
+  - scikit-image
+  - scipy
+  - wxpython

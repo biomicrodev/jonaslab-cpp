@@ -6,7 +6,7 @@ Here are some helpful cellprofiler plugins used by the Laboratory for Bio-Micro 
 
 ### Prerequisites
 
-[Download CellProfiler](https://cellprofiler.org/releases/). Any version _should_ work, but the most recent version is always recommended.
+[Download CellProfiler](https://cellprofiler.org/releases/). Only CellProfiler 3 is supported for now.
  
 ### Installing
 
