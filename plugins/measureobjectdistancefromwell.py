@@ -17,44 +17,54 @@ corner of the image,
 import math
 from typing import List, Tuple
 
-import numpy
+import numpy as np
 
-import cellprofiler.measurement
-import cellprofiler.module
-import cellprofiler.object
-import cellprofiler.pipeline
-import cellprofiler.setting
-import cellprofiler.workspace
+import cellprofiler.measurement as cpmeas
+import cellprofiler.module as cpm
+import cellprofiler.object as cpo
+import cellprofiler.pipeline as cpp
+import cellprofiler.setting as cps
+import cellprofiler.workspace as cpw
 
 
-class MeasureObjectDistanceFromWell(cellprofiler.module.Module):
+class MeasureObjectDistanceFromWell(cpm.Module):
     module_name = "MeasureObjectDistanceFromWell"
     category = "JonasLab Custom"
     variable_revision_number = 1
 
+    def volumetric(self) -> bool:
+        return False
+
     def create_settings(self) -> None:
+        self.crop_mask_name = cps.ObjectNameSubscriber(
+            text="Select the cropping mask",
+            value="None",
+            doc="",
+            can_be_blank=True,
+        )
+
         self.object_groups = []
         self.add_object_group(can_remove=False)
-        self.divider = cellprofiler.setting.Divider(line=True)
-        self.add_object_group_button = cellprofiler.setting.DoSomething(
+        self.divider = cps.Divider(line=True)
+        self.add_object_group_button = cps.DoSomething(
             text="", label="Add another object", callback=self.add_object_group
         )
 
-    def settings(self) -> List[cellprofiler.setting.Setting]:
-        return [group.name for group in self.object_groups]
+    def settings(self) -> List[cps.Setting]:
+        return [self.crop_mask_name] + [group.name for group in self.object_groups]
 
-    def visible_settings(self) -> List[cellprofiler.setting.Setting]:
-        settings = []
+    def visible_settings(self) -> List[cps.Setting]:
+        settings = [self.crop_mask_name]
         for group in self.object_groups:
             settings += group.visible_settings()
         settings += [self.add_object_group_button, self.divider]
         return settings
 
-    def validate_module(self, pipeline: cellprofiler.pipeline.Pipeline) -> None:
+    def validate_module(self, pipeline: cpp.Pipeline) -> None:
         objects = set()
         for group in self.object_groups:
             if group.name.value in objects:
-                raise cellprofiler.setting.ValidationError(
+                raise cps.ValidationError(
                     "{group_name} has already been selected".format(
                         group_name=group.name.value
                     ),
@@ -63,15 +73,15 @@ class MeasureObjectDistanceFromWell(cellprofiler.module.Module):
             objects.add(group.name.value)
 
     def add_object_group(self, can_remove: bool = True) -> None:
-        group = cellprofiler.setting.SettingsGroup()
+        group = cps.SettingsGroup()
         if can_remove:
-            group.append("divider", cellprofiler.setting.Divider(line=False))
+            group.append("divider", cps.Divider(line=False))
 
         group.append(
             "name",
-            cellprofiler.setting.ObjectNameSubscriber(
+            cps.ObjectNameSubscriber(
                 text="Select objects to measure",
-                value=cellprofiler.setting.NONE,
+                value="None",
                 doc="Select the objects that you want to measure.",
             ),
         )
@@ -79,7 +89,7 @@ class MeasureObjectDistanceFromWell(cellprofiler.module.Module):
         if can_remove:
             group.append(
                 "remove",
-                cellprofiler.setting.RemoveSettingButton(
+                cps.RemoveSettingButton(
                     text="",
                     label="Remove this object",
                     list=self.object_groups,
@@ -89,46 +99,72 @@ class MeasureObjectDistanceFromWell(cellprofiler.module.Module):
 
         self.object_groups.append(group)
 
-    def prepare_run(self, workspace: cellprofiler.workspace.Workspace) -> bool:
-        for measurement_name in ["RadialDistance", "AngularDistance"]:
-            workspace.measurements.add_image_measurement(
-                feature_name=measurement_name,
-                data=0.0,
-                data_type=cellprofiler.measurement.COLTYPE_FLOAT,
+    # def prepare_run(self, workspace: cpw.Workspace) -> bool:
+    #     for measurement_name in [
+    #         "Metadata_Radius",
+    #         "WellDistance_RadialDistance",
+    #         "WellDistance_AngularDistance",
+    #     ]:
+    #         workspace.measurements.add_image_measurement(
+    #             feature_name=measurement_name, data=0.0
+    #         )
+    #
+    #     return True
+
+    def get_measurement_columns(
+        self, pipeline: cpp.Pipeline
+    ) -> List[Tuple[str, str, str]]:
+        columns = []
+        for object_name in [object_group.name for object_group in self.object_groups]:
+            for measurement_name in ["RadialDistance", "AngularDistance"]:
+                columns += [
+                    (
+                        object_name.value,
+                        "WellDistance_" + measurement_name,
+                        cpmeas.COLTYPE_FLOAT,
+                    )
+                ]
+
+        columns += [
+            (
+                cpmeas.IMAGE,
+                "Metadata_Radius",
+                cpmeas.COLTYPE_FLOAT,
             )
-
-        return True
-
-    # def get_categories(
-    #     self, pipeline: cellprofiler.pipeline.Pipeline, object_name: str
-    # ) -> List[str]:
-    #     return ["WellDistance"]
+        ]
+        return columns
 
     # def get_measurements(
-    #     self, pipeline: cellprofiler.pipeline.Pipeline, object_name: str, category: str
-    # ) -> List:
+    #     self, pipeline: cpp.Pipeline, object_name: str, category: str
+    # ) -> List[str]:
+    #     print("get_measurements")
+    #     # Doesn't actually run...
     #     if category == "WellDistance" and self.get_categories(pipeline, object_name):
     #         return ["AngularDistance", "RadialDistance"]
     #
     #     return []
 
-    def get_measurement_columns(
-        self, pipeline: cellprofiler.pipeline.Pipeline
-    ) -> List[Tuple[str, str, str]]:
-        columns = []
-        for object_name in [object_group.name for object_group in self.object_groups]:
-            print(object_name.value)
-            for measurement_name in ["RadialDistance", "AngularDistance"]:
-                columns += [
-                    (
-                        object_name.value,
-                        measurement_name,
-                        cellprofiler.measurement.COLTYPE_FLOAT,
-                    )
-                ]
-        return columns
+    # def get_categories(
+    #     self, pipeline: cpp.Pipeline, object_name: str
+    # ) -> List[str]:
+    #     for object_name_var in [
+    #         object_group.name for object_group in self.object_groups
+    #     ]:
+    #         if object_name_var.value == object_name:
+    #             return ["WellDistance"]
+    #     return []
 
-    def run(self, workspace: cellprofiler.workspace.Workspace) -> None:
+    def run(self, workspace: cpw.Workspace) -> None:
+        if self.crop_mask_name.value == "Leave blank":
+            origin_x = 0
+            origin_y = 0
+        else:
+            crop_mask: np.ndarray = workspace.object_set.get_objects(
+                self.crop_mask_name.value
+            ).segmented
+            origin_x = np.logical_or.reduce(crop_mask, axis=0).argmax()
+            origin_y = np.logical_or.reduce(crop_mask, axis=1).argmax()
+
         center_x = workspace.measurements.get_current_image_measurement(
             "Metadata_Bow_Center_X"
         )
@@ -141,32 +177,47 @@ class MeasureObjectDistanceFromWell(cellprofiler.module.Module):
         well_y = workspace.measurements.get_current_image_measurement(
             "Metadata_Bow_Well_Y"
         )
+        mpp = workspace.measurements.get_current_image_measurement("Metadata_MPP")
+
+        # translate if cropped
+        center_x -= origin_x
+        center_y -= origin_y
+        well_x -= origin_x
+        well_y -= origin_y
 
         # Compute polar origin
-        length = math.sqrt(
-            (well_x ** 2 - center_x ** 2) + (well_y ** 2 - center_y ** 2)
-        )
+        radius = math.sqrt((well_y - center_y) ** 2 + (well_x - center_x) ** 2)
+        radius *= mpp
         angle = math.atan2((well_y - center_y), (well_x - center_x))
 
         for object_name in [obj.name.value for obj in self.object_groups]:
-            objects: cellprofiler.object.Objects = workspace.object_set.get_objects(
-                object_name
-            )
+            objects: cpo.Objects = workspace.object_set.get_objects(object_name)
             # Compute delta in polar coordinates
-            centroids: numpy.ndarray = objects.center_of_mass()  # y, x
+            centroids: np.ndarray = objects.center_of_mass()  # y, x
+
+            if centroids.size == 0:
+                continue
+
             dy = centroids[:, 0] - center_y
             dx = centroids[:, 1] - center_x
-            radial_dist = numpy.sqrt(dy ** 2 + dx ** 2) - length
-            angular_dist = numpy.arctan2(dy, dx) - angle
+            radial_dist = np.sqrt(dy ** 2 + dx ** 2)
+            # everything in pixels up until now
+            radial_dist *= mpp
+            angular_dist = (np.arctan2(dy, dx) - angle + math.pi) % (
+                2 * math.pi
+            ) - math.pi
+
+            workspace.measurements.add_image_measurement(
+                feature_name="Metadata_Radius", data=radius
+            )
 
             workspace.add_measurement(
-                object_name=object_name, feature_name="RadialDistance", data=radial_dist
+                object_name=object_name,
+                feature_name="WellDistance_RadialDistance",
+                data=radial_dist,
             )
             workspace.add_measurement(
                 object_name=object_name,
-                feature_name="AngularDistance",
+                feature_name="WellDistance_AngularDistance",
                 data=angular_dist,
             )
-
-    def volumetric(self) -> bool:
-        return False
